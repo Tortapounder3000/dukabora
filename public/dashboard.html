@@ -30,27 +30,32 @@
     </nav>
 
     <div class="sidebar-footer">
-  <div class="role-badge" id="role-badge">Manager</div>
-  <button class="btn-ghost btn-sm" onclick="showRoleSwitch()">Switch Role</button>
-  <button class="btn-ghost btn-sm" onclick="logout()">Sign out</button>
-</div>
-
-<!-- Role Switch Modal -->
-<div id="role-modal" class="modal-overlay hidden">
-  <div class="modal-box">
-    <h3 class="modal-title">Switch to Manager</h3>
-    <p class="modal-sub">Enter the manager password to continue</p>
-    <div id="role-error" class="error-banner hidden"></div>
-    <div class="form-group">
-      <label>Manager Password</label>
-      <input type="password" id="manager-password" placeholder="••••••••" />
+      <div class="role-badge" id="role-badge">Manager</div>
+      <button class="nav-item" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;gap:10px;display:flex;align-items:center;padding:10px 12px;color:#9ca3af;font-size:14px;font-weight:500;" onclick="showRoleSwitch()">
+        <span class="nav-icon">🔄</span> Switch Role
+      </button>
+      <button class="nav-item" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;gap:10px;display:flex;align-items:center;padding:10px 12px;color:#9ca3af;font-size:14px;font-weight:500;" onclick="logout()">
+        <span class="nav-icon">🚪</span> Sign out
+      </button>
     </div>
-    <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeRoleSwitch()">Cancel</button>
-      <button class="btn-primary" onclick="verifyAndSwitch()">Confirm</button>
+  </aside>
+
+  <!-- Role Switch Modal -->
+  <div id="role-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h3 class="modal-title">Switch to Manager</h3>
+      <p class="modal-sub">Enter the manager password to continue</p>
+      <div id="role-error" class="error-banner hidden"></div>
+      <div class="form-group">
+        <label>Manager Password</label>
+        <input type="password" id="manager-password" placeholder="••••••••" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeRoleSwitch()">Cancel</button>
+        <button class="btn-primary" onclick="verifyAndSwitch()">Confirm</button>
+      </div>
     </div>
   </div>
-</div>
 
   <!-- Main content -->
   <main class="main-content">
@@ -62,7 +67,6 @@
       <button class="btn-ghost btn-sm" onclick="loadData()">↻ Refresh</button>
     </div>
 
-    <!-- KPI Cards -->
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-label">Revenue Today</div>
@@ -77,14 +81,13 @@
         <div class="kpi-label">Transactions</div>
         <div class="kpi-value" id="transactions-today">—</div>
       </div>
-      <div class="kpi-card kpi-alert" id="low-stock-card">
+      <div class="kpi-card" id="low-stock-card">
         <div class="kpi-label">Low Stock Items</div>
         <div class="kpi-value" id="low-stock-count">—</div>
         <a href="/inventory.html" class="kpi-link">View inventory →</a>
       </div>
     </div>
 
-    <!-- Velocity Section -->
     <div class="two-col">
       <div class="card">
         <div class="card-header">
@@ -95,7 +98,6 @@
           <div class="loading">Loading...</div>
         </div>
       </div>
-
       <div class="card">
         <div class="card-header">
           <h2 class="card-title">Slow Movers</h2>
@@ -107,7 +109,6 @@
       </div>
     </div>
 
-    <!-- Top Margin Products -->
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">Highest Margin Products</h2>
@@ -129,6 +130,16 @@
         </tbody>
       </table>
     </div>
+
+    <div class="card" id="pending-card">
+      <div class="card-header">
+        <h2 class="card-title">Pending Product Approvals</h2>
+        <span class="badge badge-amber" id="pending-count-badge">Loading</span>
+      </div>
+      <div id="pending-list">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -148,133 +159,178 @@
       const res = await fetch(url, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
-      if (res.status === 401 || res.status === 403) {
-        logout();
-      }
+      if (res.status === 401 || res.status === 403) logout();
       return res.json();
     }
 
     async function loadData() {
-      // Summary
-      const summary = await apiFetch('/api/analytics/summary');
-      document.getElementById('revenue-today').textContent = formatTZS(summary.today.total_revenue);
-      document.getElementById('profit-today').textContent = formatTZS(summary.today.total_profit);
-      document.getElementById('transactions-today').textContent = summary.today.total_transactions;
-      document.getElementById('revenue-month').textContent = 'This month: ' + formatTZS(summary.monthly_revenue);
+      try {
+        const summary = await apiFetch('/api/analytics/summary');
+        document.getElementById('revenue-today').textContent = formatTZS(summary.today.total_revenue);
+        document.getElementById('profit-today').textContent = formatTZS(summary.today.total_profit);
+        document.getElementById('transactions-today').textContent = summary.today.total_transactions;
+        document.getElementById('revenue-month').textContent = 'This month: ' + formatTZS(summary.monthly_revenue);
 
-      // Low stock
-      const lowStock = await apiFetch('/api/analytics/low-stock');
-      document.getElementById('low-stock-count').textContent = lowStock.length;
-      if (lowStock.length > 0) {
-        document.getElementById('low-stock-card').classList.add('kpi-alert-active');
-      }
+        const lowStock = await apiFetch('/api/analytics/low-stock');
+        document.getElementById('low-stock-count').textContent = lowStock.length;
+        if (lowStock.length > 0) document.getElementById('low-stock-card').classList.add('kpi-alert-active');
 
-      // Velocity
-      const velocity = await apiFetch('/api/analytics/velocity');
+        const velocity = await apiFetch('/api/analytics/velocity');
+        const fastList = document.getElementById('fast-movers-list');
+        fastList.innerHTML = velocity.fast_movers.length === 0
+          ? '<div class="empty">No sales data yet</div>'
+          : velocity.fast_movers.map(p => `
+              <div class="product-row">
+                <div>
+                  <div class="product-name">${p.name}</div>
+                  <div class="product-sku">${p.sku} · ${p.category || '—'}</div>
+                </div>
+                <div class="product-stat">${p.total_sold} sold</div>
+              </div>`).join('');
 
-      const fastList = document.getElementById('fast-movers-list');
-      if (velocity.fast_movers.length === 0) {
-        fastList.innerHTML = '<div class="empty">No sales data yet</div>';
-      } else {
-        fastList.innerHTML = velocity.fast_movers.map(p => `
-          <div class="product-row">
-            <div>
-              <div class="product-name">${p.name}</div>
-              <div class="product-sku">${p.sku} · ${p.category || '—'}</div>
-            </div>
-            <div class="product-stat">${p.total_sold} sold</div>
-          </div>
-        `).join('');
-      }
+        const slowList = document.getElementById('slow-movers-list');
+        slowList.innerHTML = velocity.slow_movers.length === 0
+          ? '<div class="empty">All products moving well</div>'
+          : velocity.slow_movers.map(p => `
+              <div class="product-row">
+                <div>
+                  <div class="product-name">${p.name}</div>
+                  <div class="product-sku">${p.sku} · ${p.category || '—'}</div>
+                </div>
+                <div class="product-stat muted">${p.total_sold} sold</div>
+              </div>`).join('');
 
-      const slowList = document.getElementById('slow-movers-list');
-      if (velocity.slow_movers.length === 0) {
-        slowList.innerHTML = '<div class="empty">All products are moving well</div>';
-      } else {
-        slowList.innerHTML = velocity.slow_movers.map(p => `
-          <div class="product-row">
-            <div>
-              <div class="product-name">${p.name}</div>
-              <div class="product-sku">${p.sku} · ${p.category || '—'}</div>
-            </div>
-            <div class="product-stat muted">${p.total_sold} sold</div>
-          </div>
-        `).join('');
-      }
-
-      // Margins
-      const margins = await apiFetch('/api/analytics/margins');
-      const tbody = document.getElementById('margins-table');
-      if (margins.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">No products yet</td></tr>';
-      } else {
-        tbody.innerHTML = margins.map(p => `
-          <tr>
-            <td><strong>${p.name}</strong></td>
-            <td>${p.category || '—'}</td>
-            <td>${formatTZS(p.cost_price)}</td>
-            <td>${formatTZS(p.selling_price)}</td>
-            <td><span class="badge badge-green">${p.margin_percent}%</span></td>
-            <td>${formatTZS(p.total_profit_generated)}</td>
-          </tr>
-        `).join('');
+        const margins = await apiFetch('/api/analytics/margins');
+        const tbody = document.getElementById('margins-table');
+        tbody.innerHTML = margins.length === 0
+          ? '<tr><td colspan="6" class="empty">No products yet</td></tr>'
+          : margins.map(p => `
+              <tr>
+                <td><strong>${p.name}</strong></td>
+                <td>${p.category || '—'}</td>
+                <td>${formatTZS(p.cost_price)}</td>
+                <td>${formatTZS(p.selling_price)}</td>
+                <td><span class="badge badge-green">${p.margin_percent}%</span></td>
+                <td>${formatTZS(p.total_profit_generated)}</td>
+              </tr>`).join('');
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err);
       }
     }
 
     function showRoleSwitch() {
-  const currentRole = localStorage.getItem('role');
-  if (currentRole === 'manager') {
-    // switching down to storekeeper needs no password
-    localStorage.setItem('role', 'storekeeper');
-    window.location.href = '/terminal.html';
-    return;
-  }
-  document.getElementById('role-modal').classList.remove('hidden');
-  document.getElementById('manager-password').focus();
-}
-
-function closeRoleSwitch() {
-  document.getElementById('role-modal').classList.add('hidden');
-  document.getElementById('manager-password').value = '';
-  document.getElementById('role-error').classList.add('hidden');
-}
-
-async function verifyAndSwitch() {
-  const password = document.getElementById('manager-password').value;
-  const errorEl = document.getElementById('role-error');
-
-  try {
-    const res = await fetch('/api/auth/verify-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token,
-      },
-      body: JSON.stringify({ password }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      errorEl.textContent = data.error || 'Wrong password';
-      errorEl.classList.remove('hidden');
-      return;
+      if (localStorage.getItem('role') === 'manager') {
+        localStorage.setItem('role', 'storekeeper');
+        window.location.href = '/terminal.html';
+        return;
+      }
+      document.getElementById('role-modal').classList.remove('hidden');
+      document.getElementById('manager-password').focus();
     }
 
-    localStorage.setItem('role', 'manager');
-    window.location.href = '/dashboard.html';
-  } catch (err) {
-    errorEl.textContent = 'Something went wrong';
-    errorEl.classList.remove('hidden');
-  }
-}
+    function closeRoleSwitch() {
+      document.getElementById('role-modal').classList.add('hidden');
+      document.getElementById('manager-password').value = '';
+      document.getElementById('role-error').classList.add('hidden');
+    }
+
+    async function verifyAndSwitch() {
+      const password = document.getElementById('manager-password').value;
+      const errorEl = document.getElementById('role-error');
+      try {
+        const res = await fetch('/api/auth/verify-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Wrong password';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        localStorage.setItem('role', 'manager');
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        errorEl.textContent = 'Something went wrong';
+        errorEl.classList.remove('hidden');
+      }
+    }
 
     function logout() {
       localStorage.clear();
       window.location.href = '/login.html';
     }
 
+    async function loadPending() {
+      const card = document.getElementById('pending-card');
+      try {
+        const res = await apiFetch('/api/products/pending');
+        const items = await res.json();
+        const badge = document.getElementById('pending-count-badge');
+        badge.textContent = items.length + ' pending';
+        badge.className = items.length > 0 ? 'badge badge-amber' : 'badge badge-green';
+
+        const list = document.getElementById('pending-list');
+        if (items.length === 0) {
+          list.innerHTML = '<div class="empty">No pending approvals</div>';
+          return;
+        }
+
+        list.innerHTML = '<table class="data-table"><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Cost</th><th>Price</th><th>Stock</th><th>Submitted by</th><th>Actions</th></tr></thead><tbody>'
+          + items.map(p => `
+            <tr>
+              <td><strong>${escDash(p.name)}</strong></td>
+              <td style="font-family:monospace;font-size:12px;">${escDash(p.sku)}</td>
+              <td>${escDash(p.category || '—')}</td>
+              <td>TZS ${Number(p.cost_price).toLocaleString()}</td>
+              <td>TZS ${Number(p.selling_price).toLocaleString()}</td>
+              <td>${p.stock_qty}</td>
+              <td style="font-size:12px;color:var(--text-muted);">${escDash(p.submitter_email)}</td>
+              <td>
+                <button onclick="approvePending(${p.id})" style="height:28px;padding:0 10px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;margin-right:4px;">Approve</button>
+                <button onclick="rejectPending(${p.id})" style="height:28px;padding:0 10px;background:var(--error-bg);color:var(--error);border:1px solid #fecaca;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Reject</button>
+              </td>
+            </tr>`).join('')
+          + '</tbody></table>';
+      } catch (err) {
+        document.getElementById('pending-list').innerHTML = '<div class="empty">Failed to load</div>';
+      }
+    }
+
+    function escDash(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function approvePending(id) {
+      try {
+        const res = await fetch('/api/products/pending/' + id + '/approve', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Approval failed'); return; }
+        loadPending();
+      } catch { alert('Network error'); }
+    }
+
+    async function rejectPending(id) {
+      const reason = prompt('Rejection reason (optional):');
+      if (reason === null) return;
+      try {
+        const res = await fetch('/api/products/pending/' + id + '/reject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ reason }),
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Rejection failed'); return; }
+        loadPending();
+      } catch { alert('Network error'); }
+    }
+
     loadData();
+    loadPending();
   </script>
 </body>
 </html>
