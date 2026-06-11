@@ -5,7 +5,7 @@ const pool = require('../db');
 
 const router = express.Router();
 
-// POST /api/auth/register — creates a new store + its manager account
+// POST /api/auth/register
 router.post('/register', async (req, res) => {
   const { store_name, email, password } = req.body;
 
@@ -17,7 +17,6 @@ router.post('/register', async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // generate a unique store code e.g. DUKA-4F2A
     const store_code = 'DUKA-' + Math.random().toString(36).substring(2, 6).toUpperCase();
 
     const [storeResult] = await conn.query(
@@ -28,22 +27,18 @@ router.post('/register', async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
 
-    const [userResult] = await conn.query(
+    await conn.query(
       'INSERT INTO users (store_id, email, password_hash, role) VALUES (?, ?, ?, ?)',
       [store_id, email, password_hash, 'manager']
     );
 
     await conn.commit();
 
-    res.status(201).json({
-      message: 'Store registered successfully',
-      store_code,
-      store_id,
-    });
+    res.status(201).json({ message: 'Store registered successfully', store_code, store_id });
   } catch (err) {
     await conn.rollback();
     if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Email already registered for this store.' });
+      return res.status(409).json({ error: 'Email already registered.' });
     }
     res.status(500).json({ error: 'Registration failed: ' + err.message });
   } finally {
@@ -86,14 +81,38 @@ router.post('/login', async (req, res) => {
       { expiresIn: '12h' }
     );
 
-    res.json({
-      message: 'Login successful',
-      token,
-      role: user.role,
-      store_id: user.store_id,
-    });
+    res.json({ message: 'Login successful', token, role: user.role, store_id: user.store_id });
   } catch (err) {
     res.status(500).json({ error: 'Login failed: ' + err.message });
+  }
+});
+
+// POST /api/auth/verify-password — for role elevation
+router.post('/verify-password', async (req, res) => {
+  const { password } = req.body;
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: 'No token.' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const [users] = await pool.query(
+      'SELECT * FROM users WHERE id = ? AND store_id = ? AND role = ?',
+      [decoded.user_id, decoded.store_id, 'manager']
+    );
+
+    if (users.length === 0) {
+      return res.status(403).json({ error: 'Not a manager account.' });
+    }
+
+    const valid = await bcrypt.compare(password, users[0].password_hash);
+    if (!valid) return res.status(401).json({ error: 'Wrong password.' });
+
+    res.json({ verified: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

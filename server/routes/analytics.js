@@ -35,11 +35,14 @@ router.get('/summary', async (req, res) => {
     );
 
     res.json({
-      revenue_today: summary[0].revenue_today,
-      transactions_today: summary[0].transactions_today,
-      profit_today: profit[0].profit_today,
-      revenue_month: monthRevenue[0].revenue_month,
-    });
+  today: {
+    total_revenue: today[0].total_revenue,
+    total_profit: today[0].total_profit,
+    total_transactions: today[0].total_transactions,
+  },
+  monthly_revenue: month[0].monthly_revenue,
+});
+
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch summary: ' + err.message });
   }
@@ -100,6 +103,7 @@ router.get('/margins', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch margins: ' + err.message });
   }
+
 });
 
 module.exports = router;

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dukabora — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body class="app-page">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">D</div>
+      <span>Dukabora</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/dashboard.html" class="nav-item active">
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <a href="/inventory.html" class="nav-item">
+        <span class="nav-icon">📦</span> Inventory
+      </a>
+      <a href="/terminal.html" class="nav-item">
+        <span class="nav-icon">🛒</span> POS Terminal
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+  <div class="role-badge" id="role-badge">Manager</div>
+  <button class="btn-ghost btn-sm" onclick="showRoleSwitch()">Switch Role</button>
+  <button class="btn-ghost btn-sm" onclick="logout()">Sign out</button>
+</div>
+
+<!-- Role Switch Modal -->
+<div id="role-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 class="modal-title">Switch to Manager</h3>
+    <p class="modal-sub">Enter the manager password to continue</p>
+    <div id="role-error" class="error-banner hidden"></div>
+    <div class="form-group">
+      <label>Manager Password</label>
+      <input type="password" id="manager-password" placeholder="••••••••" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeRoleSwitch()">Cancel</button>
+      <button class="btn-primary" onclick="verifyAndSwitch()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Today's performance overview</p>
+      </div>
+      <button class="btn-ghost btn-sm" onclick="loadData()">↻ Refresh</button>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Revenue Today</div>
+        <div class="kpi-value" id="revenue-today">—</div>
+        <div class="kpi-sub" id="revenue-month"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Profit Today</div>
+        <div class="kpi-value accent" id="profit-today">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Transactions</div>
+        <div class="kpi-value" id="transactions-today">—</div>
+      </div>
+      <div class="kpi-card kpi-alert" id="low-stock-card">
+        <div class="kpi-label">Low Stock Items</div>
+        <div class="kpi-value" id="low-stock-count">—</div>
+        <a href="/inventory.html" class="kpi-link">View inventory →</a>
+      </div>
+    </div>
+
+    <!-- Velocity Section -->
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Fast Movers</h2>
+          <span class="badge badge-green">Last 30 days</span>
+        </div>
+        <div id="fast-movers-list" class="product-list">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Slow Movers</h2>
+          <span class="badge badge-amber">Needs attention</span>
+        </div>
+        <div id="slow-movers-list" class="product-list">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Margin Products -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Highest Margin Products</h2>
+        <span class="badge badge-green">Ranked by margin %</span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Cost</th>
+            <th>Price</th>
+            <th>Margin</th>
+            <th>Total Profit</th>
+          </tr>
+        </thead>
+        <tbody id="margins-table">
+          <tr><td colspan="6" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+    if (!token) window.location.href = '/login.html';
+    if (role !== 'manager') window.location.href = '/terminal.html';
+
+    document.getElementById('role-badge').textContent = role === 'manager' ? 'Manager' : 'Storekeeper';
+
+    function formatTZS(amount) {
+      return 'TZS ' + Number(amount).toLocaleString();
+    }
+
+    async function apiFetch(url) {
+      const res = await fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.status === 401 || res.status === 403) {
+        logout();
+      }
+      return res.json();
+    }
+
+    async function loadData() {
+      // Summary
+      const summary = await apiFetch('/api/analytics/summary');
+      document.getElementById('revenue-today').textContent = formatTZS(summary.today.total_revenue);
+      document.getElementById('profit-today').textContent = formatTZS(summary.today.total_profit);
+      document.getElementById('transactions-today').textContent = summary.today.total_transactions;
+      document.getElementById('revenue-month').textContent = 'This month: ' + formatTZS(summary.monthly_revenue);
+
+      // Low stock
+      const lowStock = await apiFetch('/api/analytics/low-stock');
+      document.getElementById('low-stock-count').textContent = lowStock.length;
+      if (lowStock.length > 0) {
+        document.getElementById('low-stock-card').classList.add('kpi-alert-active');
+      }
+
+      // Velocity
+      const velocity = await apiFetch('/api/analytics/velocity');
+
+      const fastList = document.getElementById('fast-movers-list');
+      if (velocity.fast_movers.length === 0) {
+        fastList.innerHTML = '<div class="empty">No sales data yet</div>';
+      } else {
+        fastList.innerHTML = velocity.fast_movers.map(p => `
+          <div class="product-row">
+            <div>
+              <div class="product-name">${p.name}</div>
+              <div class="product-sku">${p.sku} · ${p.category || '—'}</div>
+            </div>
+            <div class="product-stat">${p.total_sold} sold</div>
+          </div>
+        `).join('');
+      }
+
+      const slowList = document.getElementById('slow-movers-list');
+      if (velocity.slow_movers.length === 0) {
+        slowList.innerHTML = '<div class="empty">All products are moving well</div>';
+      } else {
+        slowList.innerHTML = velocity.slow_movers.map(p => `
+          <div class="product-row">
+            <div>
+              <div class="product-name">${p.name}</div>
+              <div class="product-sku">${p.sku} · ${p.category || '—'}</div>
+            </div>
+            <div class="product-stat muted">${p.total_sold} sold</div>
+          </div>
+        `).join('');
+      }
+
+      // Margins
+      const margins = await apiFetch('/api/analytics/margins');
+      const tbody = document.getElementById('margins-table');
+      if (margins.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No products yet</td></tr>';
+      } else {
+        tbody.innerHTML = margins.map(p => `
+          <tr>
+            <td><strong>${p.name}</strong></td>
+            <td>${p.category || '—'}</td>
+            <td>${formatTZS(p.cost_price)}</td>
+            <td>${formatTZS(p.selling_price)}</td>
+            <td><span class="badge badge-green">${p.margin_percent}%</span></td>
+            <td>${formatTZS(p.total_profit_generated)}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    function showRoleSwitch() {
+  const currentRole = localStorage.getItem('role');
+  if (currentRole === 'manager') {
+    // switching down to storekeeper needs no password
+    localStorage.setItem('role', 'storekeeper');
+    window.location.href = '/terminal.html';
+    return;
+  }
+  document.getElementById('role-modal').classList.remove('hidden');
+  document.getElementById('manager-password').focus();
+}
+
+function closeRoleSwitch() {
+  document.getElementById('role-modal').classList.add('hidden');
+  document.getElementById('manager-password').value = '';
+  document.getElementById('role-error').classList.add('hidden');
+}
+
+async function verifyAndSwitch() {
+  const password = document.getElementById('manager-password').value;
+  const errorEl = document.getElementById('role-error');
+
+  try {
+    const res = await fetch('/api/auth/verify-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+      body: JSON.stringify({ password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorEl.textContent = data.error || 'Wrong password';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    localStorage.setItem('role', 'manager');
+    window.location.href = '/dashboard.html';
+  } catch (err) {
+    errorEl.textContent = 'Something went wrong';
+    errorEl.classList.remove('hidden');
+  }
+}
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/login.html';
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
