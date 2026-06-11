@@ -10,6 +10,12 @@ app.use(express.json());
 
 app.use('/api/auth', require('./routes/auth'));
 
+app.use('/api/products', require('./routes/products'));
+
+app.use('/api/sales', require('./routes/sales'));
+
+app.use('/api/analytics', require('./routes/analytics'));app.use('/api/analytics', require('./routes/analytics'));
+
 app.get('/', (req, res) => {
   res.json({ message: 'Dukabora API is running 🚀' });
 });
