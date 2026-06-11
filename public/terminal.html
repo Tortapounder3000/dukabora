@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dukabora — POS Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+  <style>
+    body { overflow: hidden; }
+
+    .terminal-layout {
+      margin-left: 240px;
+      display: flex;
+      height: 100vh;
+    }
+
+    .scanner-panel {
+      flex: 1;
+      padding: 28px;
+      overflow-y: auto;
+      background: var(--bg);
+    }
+
+    .sku-input {
+      width: 100%;
+      height: 52px;
+      padding: 0 18px;
+      font-size: 17px;
+      font-family: inherit;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      outline: none;
+      background: var(--bg-white);
+      color: var(--text);
+      transition: border-color 0.15s;
+    }
+    .sku-input:focus { border-color: var(--accent); }
+
+    .scan-feedback {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .scan-feedback.success { background: #ecfdf5; color: var(--success); border: 1px solid #a7f3d0; }
+    .scan-feedback.error { background: var(--error-bg); color: var(--error); border: 1px solid #fecaca; }
+
+    .cart-panel {
+      width: 380px;
+      flex-shrink: 0;
+      background: var(--bg-white);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .cart-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cart-items {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 20px;
+    }
+
+    .cart-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      gap: 8px;
+      color: var(--text-light);
+    }
+    .cart-empty-icon { font-size: 36px; }
+
+    .cart-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .cart-item:last-child { border-bottom: none; }
+
+    .cart-item-info { flex: 1; min-width: 0; }
+    .cart-item-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cart-item-unit { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+    .qty-control { display: flex; align-items: center; gap: 6px; }
+    .qty-btn {
+      width: 26px;
+      height: 26px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      transition: background 0.1s;
+    }
+    .qty-btn:hover { background: var(--border); }
+    .qty-num { width: 28px; text-align: center; font-size: 14px; font-weight: 600; }
+
+    .cart-item-total { font-size: 13px; font-weight: 600; min-width: 76px; text-align: right; }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-light);
+      font-size: 14px;
+      padding: 4px;
+      line-height: 1;
+      transition: color 0.1s;
+    }
+    .remove-btn:hover { color: var(--error); }
+
+    .cart-footer {
+      padding: 14px 20px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .cart-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .cart-total-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+    .cart-total-amount { font-size: 24px; font-weight: 700; }
+
+    .payment-methods {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+    .payment-opt {
+      padding: 8px 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+      color: var(--text-muted);
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .payment-opt.active {
+      border-color: var(--accent);
+      background: #fffbeb;
+      color: var(--accent);
+    }
+
+    .receipt-items { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
+    .receipt-row { display: flex; justify-content: space-between; font-size: 14px; }
+    .receipt-divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+    .receipt-total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; }
+
+    .offline-banner {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: var(--error);
+      color: white;
+      text-align: center;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 9999;
+      transform: translateY(-100%);
+      transition: transform 0.25s ease;
+    }
+    .offline-banner.show { transform: translateY(0); }
+
+    .bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--primary);
+      padding: 8px 0;
+      z-index: 200;
+      justify-content: space-around;
+    }
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-decoration: none;
+      padding: 6px 12px;
+    }
+    .bottom-nav-item.active { color: white; }
+    .bottom-nav-item .bnav-icon { font-size: 18px; }
+
+    @media (max-width: 768px) {
+      body { overflow: auto; }
+      .terminal-layout { flex-direction: column; margin-left: 0; height: auto; min-height: 100vh; padding-bottom: 70px; }
+      .scanner-panel { padding: 20px 16px; }
+      .cart-panel { width: 100%; height: auto; border-left: none; border-top: 1px solid var(--border); }
+      .cart-items { max-height: 300px; }
+      .bottom-nav { display: flex; }
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      #receipt-modal, #receipt-modal * { visibility: visible; }
+      #receipt-modal { position: absolute; left: 0; top: 0; width: 100%; }
+      .modal-actions { display: none !important; }
+    }
+  </style>
+</head>
+<body class="app-page">
+
+  <div id="offline-banner" class="offline-banner">⚠ You are offline — sales cannot be processed</div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">D</div>
+      <span>Dukabora</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard.html" class="nav-item" id="nav-dashboard">
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <a href="/inventory.html" class="nav-item">
+        <span class="nav-icon">📦</span> Inventory
+      </a>
+      <a href="/terminal.html" class="nav-item active">
+        <span class="nav-icon">🛒</span> POS Terminal
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="role-badge" id="role-badge">Storekeeper</div>
+      <button class="nav-item" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;gap:10px;display:flex;align-items:center;padding:10px 12px;color:#9ca3af;font-size:14px;font-weight:500;" onclick="showRoleSwitch()">
+        <span class="nav-icon">🔄</span> Switch Role
+      </button>
+      <button class="nav-item" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;gap:10px;display:flex;align-items:center;padding:10px 12px;color:#9ca3af;font-size:14px;font-weight:500;" onclick="logout()">
+        <span class="nav-icon">🚪</span> Sign out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Role switch modal -->
+  <div id="role-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h3 class="modal-title">Switch to Manager</h3>
+      <p class="modal-sub">Enter the manager password to continue</p>
+      <div id="role-error" class="error-banner hidden"></div>
+      <div class="form-group">
+        <label>Manager Password</label>
+        <input type="password" id="manager-password" placeholder="••••••••" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost btn-sm" onclick="closeRoleSwitch()">Cancel</button>
+        <button class="btn-primary btn-sm" onclick="verifyAndSwitch()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt modal -->
+  <div id="receipt-modal" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:420px;">
+      <h3 class="modal-title">Sale Complete</h3>
+      <p class="modal-sub" id="receipt-meta"></p>
+      <div id="receipt-items" class="receipt-items"></div>
+      <hr class="receipt-divider" />
+      <div class="receipt-total-row">
+        <span>Total</span>
+        <span id="receipt-total"></span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost btn-sm" onclick="window.print()">Print</button>
+        <button class="btn-accent btn-sm" onclick="closeReceipt()">New Sale</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal layout -->
+  <div class="terminal-layout">
+
+    <div class="scanner-panel">
+      <div class="page-header" style="margin-bottom:20px;">
+        <div>
+          <h1 class="page-title">POS Terminal</h1>
+          <p class="page-subtitle">Scan barcode or type SKU, then press Enter</p>
+        </div>
+      </div>
+
+      <input
+        type="text"
+        id="sku-input"
+        class="sku-input"
+        placeholder="Scan barcode or type SKU..."
+        autocomplete="off"
+        autofocus
+      />
+      <div id="scan-feedback" class="scan-feedback hidden"></div>
+    </div>
+
+    <div class="cart-panel">
+      <div class="cart-header">
+        <h2 class="card-title">Cart</h2>
+        <button class="btn-ghost btn-sm" onclick="clearCart()">Clear</button>
+      </div>
+
+      <div class="cart-items" id="cart-items">
+        <div class="cart-empty">
+          <span class="cart-empty-icon">🛒</span>
+          <span>Cart is empty</span>
+          <span style="font-size:12px;">Scan a product to begin</span>
+        </div>
+      </div>
+
+      <div class="cart-footer">
+        <div class="cart-total-row">
+          <span class="cart-total-label">Total</span>
+          <span class="cart-total-amount" id="cart-total">TZS 0</span>
+        </div>
+
+        <div class="payment-methods">
+          <button class="payment-opt active" data-method="cash" onclick="selectPayment(this)">Cash</button>
+          <button class="payment-opt" data-method="selcom_pesa" onclick="selectPayment(this)">Selcom Pesa</button>
+          <button class="payment-opt" data-method="mobile_money" onclick="selectPayment(this)">Mobile Money</button>
+        </div>
+
+        <button class="btn-accent btn-full" id="checkout-btn" onclick="checkout()" disabled>
+          Checkout
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile bottom nav -->
+  <nav class="bottom-nav">
+    <a href="/dashboard.html" class="bottom-nav-item" id="bnav-dashboard">
+      <span class="bnav-icon">📊</span><span>Dashboard</span>
+    </a>
+    <a href="/inventory.html" class="bottom-nav-item">
+      <span class="bnav-icon">📦</span><span>Inventory</span>
+    </a>
+    <a href="/terminal.html" class="bottom-nav-item active">
+      <span class="bnav-icon">🛒</span><span>Terminal</span>
+    </a>
+    <button class="bottom-nav-item" style="background:none;border:none;cursor:pointer;" onclick="logout()">
+      <span class="bnav-icon">🚪</span><span>Sign out</span>
+    </button>
+  </nav>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+
+    if (!token) window.location.href = '/login.html';
+
+    document.getElementById('role-badge').textContent = role === 'manager' ? 'Manager' : 'Storekeeper';
+
+    if (role !== 'manager') {
+      document.getElementById('nav-dashboard').style.display = 'none';
+      document.getElementById('bnav-dashboard').style.display = 'none';
+    }
+
+    function checkOnline() {
+      const banner = document.getElementById('offline-banner');
+      if (!navigator.onLine) banner.classList.add('show');
+      else banner.classList.remove('show');
+    }
+    window.addEventListener('online', checkOnline);
+    window.addEventListener('offline', checkOnline);
+    checkOnline();
+
+    let cart = [];
+    let paymentMethod = 'cash';
+    const skuInput = document.getElementById('sku-input');
+
+    skuInput.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter') return;
+      const sku = skuInput.value.trim();
+      skuInput.value = '';
+      if (sku) await lookupSKU(sku);
+      skuInput.focus();
+    });
+
+    async function lookupSKU(sku) {
+      try {
+        const res = await fetch('/api/products/sku/' + encodeURIComponent(sku), {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.status === 401 || res.status === 403) { logout(); return; }
+        const product = await res.json();
+        if (!res.ok) { showFeedback('error', '"' + sku + '" not found'); return; }
+        if (product.stock_qty <= 0) { showFeedback('error', escHtml(product.name) + ' — out of stock'); return; }
+        addToCart(product);
+        showFeedback('success', 'Added: ' + escHtml(product.name));
+      } catch {
+        showFeedback('error', 'Network error. Check your connection.');
+      }
+    }
+
+    let feedbackTimer;
+    function showFeedback(type, msg) {
+      const el = document.getElementById('scan-feedback');
+      el.className = 'scan-feedback ' + type;
+      el.innerHTML = msg;
+      el.classList.remove('hidden');
+      clearTimeout(feedbackTimer);
+      feedbackTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    function addToCart(product) {
+      const existing = cart.find(i => i.product_id === product.id);
+      if (existing) {
+        if (existing.qty < product.stock_qty) {
+          existing.qty++;
+        } else {
+          showFeedback('error', 'Max stock reached for ' + escHtml(product.name));
+          return;
+        }
+      } else {
+        cart.push({
+          product_id: product.id,
+          name: product.name,
+          price: parseFloat(product.selling_price),
+          max_qty: product.stock_qty,
+          qty: 1,
+        });
+      }
+      renderCart();
+    }
+
+    function changeQty(productId, delta) {
+      const item = cart.find(i => i.product_id === productId);
+      if (!item) return;
+      item.qty += delta;
+      if (item.qty <= 0) cart = cart.filter(i => i.product_id !== productId);
+      else if (item.qty > item.max_qty) item.qty = item.max_qty;
+      renderCart();
+      skuInput.focus();
+    }
+
+    function removeItem(productId) {
+      cart = cart.filter(i => i.product_id !== productId);
+      renderCart();
+      skuInput.focus();
+    }
+
+    function clearCart() {
+      cart = [];
+      renderCart();
+      skuInput.focus();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-items');
+      const checkoutBtn = document.getElementById('checkout-btn');
+      const totalEl = document.getElementById('cart-total');
+
+      if (cart.length === 0) {
+        container.innerHTML = '<div class="cart-empty"><span class="cart-empty-icon">🛒</span><span>Cart is empty</span><span style="font-size:12px;">Scan a product to begin</span></div>';
+        checkoutBtn.disabled = true;
+        totalEl.textContent = 'TZS 0';
+        return;
+      }
+
+      const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+      totalEl.textContent = 'TZS ' + total.toLocaleString();
+      checkoutBtn.disabled = false;
+
+      container.innerHTML = cart.map(item => `
+        <div class="cart-item">
+          <div class="cart-item-info">
+            <div class="cart-item-name">${escHtml(item.name)}</div>
+            <div class="cart-item-unit">TZS ${item.price.toLocaleString()} each</div>
+          </div>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty(${item.product_id}, -1)">−</button>
+            <span class="qty-num">${item.qty}</span>
+            <button class="qty-btn" onclick="changeQty(${item.product_id}, 1)">+</button>
+          </div>
+          <div class="cart-item-total">TZS ${(item.price * item.qty).toLocaleString()}</div>
+          <button class="remove-btn" onclick="removeItem(${item.product_id})">✕</button>
+        </div>`
+      ).join('');
+    }
+
+    function selectPayment(btn) {
+      document.querySelectorAll('.payment-opt').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      paymentMethod = btn.dataset.method;
+    }
+
+    async function checkout() {
+      if (!navigator.onLine) { alert('You are offline. Cannot process sale.'); return; }
+
+      const btn = document.getElementById('checkout-btn');
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+
+      try {
+        const res = await fetch('/api/sales', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            items: cart.map(i => ({ product_id: i.product_id, qty: i.qty })),
+            payment_method: paymentMethod,
+          }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert(data.error || 'Checkout failed.');
+          btn.disabled = false;
+          btn.textContent = 'Checkout';
+          return;
+        }
+
+        showReceipt(data);
+        cart = [];
+        renderCart();
+      } catch {
+        alert('Network error. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Checkout';
+      }
+    }
+
+    const methodLabel = { cash: 'Cash', selcom_pesa: 'Selcom Pesa', mobile_money: 'Mobile Money' };
+
+    function showReceipt(sale) {
+      document.getElementById('receipt-meta').textContent =
+        'Sale #' + sale.sale_id + ' · ' + (methodLabel[paymentMethod] || paymentMethod);
+      document.getElementById('receipt-items').innerHTML = sale.items.map(i =>
+        '<div class="receipt-row"><span>' + escHtml(i.name) + ' × ' + i.qty + '</span><span>TZS ' + (i.price * i.qty).toLocaleString() + '</span></div>'
+      ).join('');
+      document.getElementById('receipt-total').textContent = 'TZS ' + Number(sale.total_amount).toLocaleString();
+      document.getElementById('receipt-modal').classList.remove('hidden');
+      document.getElementById('checkout-btn').textContent = 'Checkout';
+    }
+
+    function closeReceipt() {
+      document.getElementById('receipt-modal').classList.add('hidden');
+      skuInput.focus();
+    }
+
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showRoleSwitch() {
+      if (role === 'manager') {
+        localStorage.setItem('role', 'storekeeper');
+        window.location.reload();
+        return;
+      }
+      document.getElementById('role-modal').classList.remove('hidden');
+      document.getElementById('manager-password').focus();
+    }
+
+    function closeRoleSwitch() {
+      document.getElementById('role-modal').classList.add('hidden');
+      document.getElementById('manager-password').value = '';
+      document.getElementById('role-error').classList.add('hidden');
+    }
+
+    async function verifyAndSwitch() {
+      const password = document.getElementById('manager-password').value;
+      const errorEl = document.getElementById('role-error');
+      try {
+        const res = await fetch('/api/auth/verify-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { errorEl.textContent = data.error || 'Wrong password'; errorEl.classList.remove('hidden'); return; }
+        localStorage.setItem('role', 'manager');
+        window.location.href = '/dashboard.html';
+      } catch {
+        errorEl.textContent = 'Something went wrong';
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/login.html';
+    }
+
+    skuInput.focus();
+  </script>
+</body>
+</html>
