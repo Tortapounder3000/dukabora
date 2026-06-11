@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dukabora — Register Store</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/style.css" />
+</head>
+<body class="auth-page">
+
+  <div class="auth-container">
+    <div class="auth-brand">
+      <div class="brand-logo">D</div>
+      <h1>Dukabora</h1>
+      <p>Set up your store in minutes. Get a store code to share with your team.</p>
+      <div class="brand-features">
+        <div class="feature-item">
+          <span class="feature-icon">🏪</span>
+          <span>One account per store</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">👥</span>
+          <span>Invite storekeepers with your code</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">🔐</span>
+          <span>Secure, role-based access</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-form-panel">
+      <div class="auth-form-box">
+
+        <div id="form-state">
+          <div class="auth-form-header">
+            <h2>Register your store</h2>
+            <p>Create a manager account for your shop</p>
+          </div>
+
+          <div id="error-msg" class="error-banner hidden"></div>
+
+          <form id="register-form">
+            <div class="form-group">
+              <label for="store_name">Store Name</label>
+              <input type="text" id="store_name" placeholder="e.g. Mama Fatuma Shop" required autocomplete="off" />
+            </div>
+
+            <div class="form-group">
+              <label for="email">Manager Email</label>
+              <input type="email" id="email" placeholder="you@example.com" required />
+            </div>
+
+            <div class="form-group">
+              <label for="password">Password</label>
+              <div class="input-with-toggle">
+                <input type="password" id="password" placeholder="••••••••" required minlength="6" />
+                <button type="button" class="toggle-password" onclick="togglePassword()">Show</button>
+              </div>
+              <span class="form-hint">Minimum 6 characters</span>
+            </div>
+
+            <button type="submit" class="btn-primary btn-full" id="register-btn">
+              Create Store
+            </button>
+          </form>
+
+          <div class="auth-footer">
+            <p>Already have an account? <a href="/login.html">Sign in</a></p>
+          </div>
+        </div>
+
+        <div id="success-state" class="hidden">
+          <div style="text-align:center;margin-bottom:28px;">
+            <div style="width:56px;height:56px;background:#ecfdf5;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px;color:#059669;">✓</div>
+            <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;">Store registered!</h2>
+            <p style="color:#6b7280;font-size:14px;">Save your store code — you'll need it to sign in.</p>
+          </div>
+
+          <div style="background:#f9fafb;border:2px dashed #d97706;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px;">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin-bottom:8px;">Your Store Code</div>
+            <div id="store-code-display" style="font-size:30px;font-weight:700;color:#111827;letter-spacing:0.08em;margin-bottom:14px;"></div>
+            <button onclick="copyCode()" class="btn-ghost btn-sm" id="copy-btn">Copy Code</button>
+          </div>
+
+          <a href="/login.html" class="btn-primary btn-full" style="display:block;text-align:center;line-height:42px;text-decoration:none;">
+            Go to Login →
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (localStorage.getItem('token')) window.location.href = '/terminal.html';
+
+    function togglePassword() {
+      const input = document.getElementById('password');
+      const btn = document.querySelector('.toggle-password');
+      if (input.type === 'password') { input.type = 'text'; btn.textContent = 'Hide'; }
+      else { input.type = 'password'; btn.textContent = 'Show'; }
+    }
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('register-btn');
+      const errorMsg = document.getElementById('error-msg');
+
+      btn.textContent = 'Creating store...';
+      btn.disabled = true;
+      errorMsg.classList.add('hidden');
+
+      const store_name = document.getElementById('store_name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ store_name, email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+        document.getElementById('store-code-display').textContent = data.store_code;
+        document.getElementById('form-state').classList.add('hidden');
+        document.getElementById('success-state').classList.remove('hidden');
+      } catch (err) {
+        errorMsg.textContent = err.message;
+        errorMsg.classList.remove('hidden');
+        btn.textContent = 'Create Store';
+        btn.disabled = false;
+      }
+    });
+
+    function copyCode() {
+      const code = document.getElementById('store-code-display').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy Code'; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

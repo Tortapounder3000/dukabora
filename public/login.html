@@ -75,10 +75,8 @@
   </div>
 
   <script>
-    // redirect if already logged in
     if (localStorage.getItem('token')) {
-      const role = localStorage.getItem('role');
-      window.location.href = role === 'manager' ? '/dashboard.html' : '/terminal.html';
+      window.location.href = '/terminal.html';
     }
 
     function togglePassword() {
@@ -123,7 +121,7 @@
         localStorage.setItem('role', data.role);
         localStorage.setItem('store_id', data.store_id);
 
-        window.location.href = data.role === 'manager' ? '/dashboard.html' : '/terminal.html';
+        window.location.href = '/terminal.html';
 
       } catch (err) {
         errorMsg.textContent = err.message;
