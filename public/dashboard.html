@@ -43,8 +43,8 @@
   <!-- Role Switch Modal -->
   <div id="role-modal" class="modal-overlay hidden">
     <div class="modal-box">
-      <h3 class="modal-title">Switch to Manager</h3>
-      <p class="modal-sub">Enter the manager password to continue</p>
+      <h3 class="modal-title">Manager Access</h3>
+<p class="modal-sub">Enter the store manager PIN to continue</p>
       <div id="role-error" class="error-banner hidden"></div>
       <div class="form-group">
         <label>Manager Password</label>
@@ -129,16 +129,6 @@
           <tr><td colspan="6" class="loading">Loading...</td></tr>
         </tbody>
       </table>
-    </div>
-
-    <div class="card" id="pending-card">
-      <div class="card-header">
-        <h2 class="card-title">Pending Product Approvals</h2>
-        <span class="badge badge-amber" id="pending-count-badge">Loading</span>
-      </div>
-      <div id="pending-list">
-        <div class="loading">Loading...</div>
-      </div>
     </div>
   </main>
 
@@ -262,75 +252,7 @@
       window.location.href = '/login.html';
     }
 
-    async function loadPending() {
-      const card = document.getElementById('pending-card');
-      try {
-        const res = await apiFetch('/api/products/pending');
-        const items = await res.json();
-        const badge = document.getElementById('pending-count-badge');
-        badge.textContent = items.length + ' pending';
-        badge.className = items.length > 0 ? 'badge badge-amber' : 'badge badge-green';
-
-        const list = document.getElementById('pending-list');
-        if (items.length === 0) {
-          list.innerHTML = '<div class="empty">No pending approvals</div>';
-          return;
-        }
-
-        list.innerHTML = '<table class="data-table"><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Cost</th><th>Price</th><th>Stock</th><th>Submitted by</th><th>Actions</th></tr></thead><tbody>'
-          + items.map(p => `
-            <tr>
-              <td><strong>${escDash(p.name)}</strong></td>
-              <td style="font-family:monospace;font-size:12px;">${escDash(p.sku)}</td>
-              <td>${escDash(p.category || '—')}</td>
-              <td>TZS ${Number(p.cost_price).toLocaleString()}</td>
-              <td>TZS ${Number(p.selling_price).toLocaleString()}</td>
-              <td>${p.stock_qty}</td>
-              <td style="font-size:12px;color:var(--text-muted);">${escDash(p.submitter_email)}</td>
-              <td>
-                <button onclick="approvePending(${p.id})" style="height:28px;padding:0 10px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;margin-right:4px;">Approve</button>
-                <button onclick="rejectPending(${p.id})" style="height:28px;padding:0 10px;background:var(--error-bg);color:var(--error);border:1px solid #fecaca;border-radius:6px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Reject</button>
-              </td>
-            </tr>`).join('')
-          + '</tbody></table>';
-      } catch (err) {
-        document.getElementById('pending-list').innerHTML = '<div class="empty">Failed to load</div>';
-      }
-    }
-
-    function escDash(str) {
-      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    async function approvePending(id) {
-      try {
-        const res = await fetch('/api/products/pending/' + id + '/approve', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + token },
-        });
-        const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Approval failed'); return; }
-        loadPending();
-      } catch { alert('Network error'); }
-    }
-
-    async function rejectPending(id) {
-      const reason = prompt('Rejection reason (optional):');
-      if (reason === null) return;
-      try {
-        const res = await fetch('/api/products/pending/' + id + '/reject', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ reason }),
-        });
-        const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Rejection failed'); return; }
-        loadPending();
-      } catch { alert('Network error'); }
-    }
-
     loadData();
-    loadPending();
   </script>
 </body>
 </html>

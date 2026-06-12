@@ -55,10 +55,14 @@ router.post('/verify-password', async (req, res) => {
   if (!token) return res.status(401).json({ error: 'No token.' });
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const [users] = await pool.query('SELECT * FROM users WHERE id = ? AND store_id = ? AND role = ?', [decoded.user_id, decoded.store_id, 'manager']);
-    if (users.length === 0) return res.status(403).json({ error: 'Not a manager account.' });
-    const valid = await bcrypt.compare(password, users[0].password_hash);
-    if (!valid) return res.status(401).json({ error: 'Wrong password.' });
+    const [stores] = await pool.query(
+      'SELECT manager_pin FROM stores WHERE id = ?',
+      [decoded.store_id]
+    );
+    if (stores.length === 0) return res.status(404).json({ error: 'Store not found.' });
+    if (!stores[0].manager_pin) return res.status(403).json({ error: 'No manager PIN set for this store.' });
+    const valid = await bcrypt.compare(password, stores[0].manager_pin);
+    if (!valid) return res.status(401).json({ error: 'Wrong manager PIN.' });
     res.json({ verified: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
